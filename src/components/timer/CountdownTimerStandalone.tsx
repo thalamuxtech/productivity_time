@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, RotateCcw, Maximize2, Minimize2, Plus, Minus } from 'lucide-react'
+import { useSettingsStore } from '@/store/settingsStore'
+import { playReminderSound, DEFAULT_REMINDER_SOUND } from '@/constants/sounds'
 
 interface CountdownTimerStandaloneProps {
   onFullscreenChange?: (isFullscreen: boolean) => void
 }
 
 export default function CountdownTimerStandalone({ onFullscreenChange }: CountdownTimerStandaloneProps) {
+  const { settings } = useSettingsStore()
   const [totalTime, setTotalTime] = useState(300000) // 5 min default
   const [timeLeft, setTimeLeft] = useState(300000)
   const [isRunning, setIsRunning] = useState(false)
@@ -15,6 +18,42 @@ export default function CountdownTimerStandalone({ onFullscreenChange }: Countdo
   const [isEditing, setIsEditing] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const endTimeRef = useRef<number>(0)
+  const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopAlarm = useCallback(() => {
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current)
+      alarmIntervalRef.current = null
+    }
+  }, [])
+
+  const playAlarm = useCallback(() => {
+    if (settings?.soundEnabled === false) return
+    const soundId = settings?.defaultReminderSound || DEFAULT_REMINDER_SOUND
+    playReminderSound(soundId)
+    // Repeat 5 times, 1 second apart
+    let count = 1
+    alarmIntervalRef.current = setInterval(() => {
+      if (count >= 5) {
+        stopAlarm()
+        return
+      }
+      playReminderSound(soundId)
+      count++
+    }, 1000)
+
+    // Browser notification
+    if (
+      settings?.notifications !== false &&
+      'Notification' in window &&
+      Notification.permission === 'granted'
+    ) {
+      new Notification('⏰ Countdown Finished!', {
+        body: 'Your countdown timer has ended.',
+        icon: '/vite.svg',
+      })
+    }
+  }, [settings, stopAlarm])
 
   const start = useCallback(() => {
     if (timeLeft <= 0) return
@@ -26,11 +65,7 @@ export default function CountdownTimerStandalone({ onFullscreenChange }: Countdo
         setIsRunning(false)
         setIsFinished(true)
         if (intervalRef.current) clearInterval(intervalRef.current)
-        // Play alarm sound
-        try {
-          const audio = new Audio('/sounds/alarm1.wav')
-          audio.play().catch(() => {})
-        } catch {}
+        playAlarm()
       } else {
         setTimeLeft(remaining)
       }
@@ -38,7 +73,8 @@ export default function CountdownTimerStandalone({ onFullscreenChange }: Countdo
     setIsRunning(true)
     setIsEditing(false)
     setIsFinished(false)
-  }, [timeLeft])
+    stopAlarm()
+  }, [timeLeft, playAlarm, stopAlarm])
 
   const pause = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current)
@@ -47,11 +83,12 @@ export default function CountdownTimerStandalone({ onFullscreenChange }: Countdo
 
   const reset = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current)
+    stopAlarm()
     setTimeLeft(totalTime)
     setIsRunning(false)
     setIsFinished(false)
     setIsEditing(true)
-  }, [totalTime])
+  }, [totalTime, stopAlarm])
 
   const adjustTime = (amount: number) => {
     if (!isEditing) return
@@ -68,8 +105,9 @@ export default function CountdownTimerStandalone({ onFullscreenChange }: Countdo
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
+      stopAlarm()
     }
-  }, [])
+  }, [stopAlarm])
 
   const formatTime = (ms: number) => {
     const hours = Math.floor(ms / 3600000)

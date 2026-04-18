@@ -95,6 +95,17 @@ const sampleTasks: Array<{
   },
 ]
 
+export async function clearAllTasks() {
+  try {
+    await db.tasks.clear()
+    localStorage.removeItem('todoapp_backup')
+    console.log('✅ Cleared all tasks')
+  } catch (error) {
+    console.error('Failed to clear tasks:', error)
+    throw error
+  }
+}
+
 export async function seedDummyTasks() {
   try {
     // Clear existing tasks

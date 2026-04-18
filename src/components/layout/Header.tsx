@@ -1,9 +1,9 @@
-import { Moon, Sun, Sparkles, Settings, Timer, Menu, X } from 'lucide-react'
+import { Moon, Sun, Sparkles, Settings, Timer, Menu, X, Trash2 } from 'lucide-react'
 import { useUIStore } from '@/store/uiStore'
 import { useTaskStore } from '@/store/taskStore'
 import { Button } from '@/components/ui'
 import { toast } from '@/components/ui/Toast'
-import { seedDummyTasks } from '@/lib/seedTasks'
+import { seedDummyTasks, clearAllTasks } from '@/lib/seedTasks'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 
@@ -20,6 +20,18 @@ export default function Header() {
         toast.success('Successfully loaded demo tasks!')
       } catch {
         toast.error('Failed to seed tasks')
+      }
+    }
+  }
+
+  const handleClearTasks = async () => {
+    if (confirm('This will permanently delete ALL tasks. Continue?')) {
+      try {
+        await clearAllTasks()
+        await loadTasks()
+        toast.success('All tasks cleared')
+      } catch {
+        toast.error('Failed to clear tasks')
       }
     }
   }
@@ -67,6 +79,16 @@ export default function Header() {
           >
             <Sparkles className="h-4 w-4 text-accent-500" />
             <span className="text-sm font-medium">Demo</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearTasks}
+            className="!rounded-xl !px-4 gap-2"
+            title="Clear all tasks"
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+            <span className="text-sm font-medium">Clear</span>
           </Button>
           <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1" />
           <Button
@@ -148,6 +170,15 @@ export default function Header() {
               >
                 <Sparkles className="h-4 w-4 text-accent-500" />
                 <span>Load Demo Tasks</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { handleClearTasks(); setMobileMenuOpen(false) }}
+                className="!rounded-xl !justify-start gap-3 !px-4"
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+                <span>Clear All Tasks</span>
               </Button>
               <Button
                 variant="ghost"
